@@ -50,14 +50,14 @@ else
 fi
 
 # Set RELIC config for Flow
-COMP=(-DCFLAGS="-O3 -funroll-loops -fomit-frame-pointer ${MARCH} -mtune=native")
+COMP=(-DCFLAGS="-O3 -funroll-loops -fomit-frame-pointer ${MARCH} -mtune=native -I/usr/local/include")
 GENERAL=(-DTIMER=CYCLE -DCHECK=OFF -DVERBS=OFF)
 LIBS=(-DSHLIB=OFF -DSTLIB=ON)
 RAND=(-DRAND=HASHD -DSEED=)
 
 #
 BN_REP=(-DALLOC=AUTO -DALIGN=1 -DWSIZE=64 -DBN_PRECI=1024 -DBN_MAGNI=DOUBLE)
-ARITH=(-DARITH=EASY)
+ARITH=(-DARITH=GMP)
 PRIME=(-DFP_PRIME=381)
 
 #

@@ -27,7 +27,7 @@ import (
 //  public keys: use a binary tree of aggregations to find the invalid signatures.
 
 // #cgo CFLAGS: -g -Wall -std=c99 -I${SRCDIR}/ -I${SRCDIR}/relic/build/include
-// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s
+// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s -L/usr/local/bin -l gmp
 // #include "bls_include.h"
 import "C"
 

@@ -1,3 +1,4 @@
+//go:build relic
 // +build relic
 
 package crypto
@@ -7,7 +8,7 @@ package crypto
 // and the BLS distributed key generation protcols
 
 // #cgo CFLAGS: -g -Wall -std=c99 -I${SRCDIR}/ -I${SRCDIR}/relic/build/include
-// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s
+// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s -L/usr/local/bin -l gmp
 // #include "bls12381_utils.h"
 import "C"
 import (
