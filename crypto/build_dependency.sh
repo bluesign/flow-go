@@ -13,6 +13,8 @@ fi
 
 rm -rf "${RELIC_DIR}"
 
+bash build_gmp.sh 6.2.1
+
 # relic version or tag
 relic_version="9a0128631841c7ade82460e8e80f8289cf9120b5"
 
