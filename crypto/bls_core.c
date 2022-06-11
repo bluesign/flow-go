@@ -443,7 +443,7 @@ void bls_batchVerify(const int sigs_len, byte* results, const ep2_st* pks_input,
         int read_ret = ep_read_bin_compact(&sigs[i], &sigs_bytes[SIGNATURE_LEN*i], SIGNATURE_LEN);
         if ( read_ret != RLC_OK || check_membership_G1(&sigs[i]) != VALID) {
             if (read_ret == UNDEFINED) // unexpected error case 
-                return;
+                goto out;
             // set signature as infinity and set result as invald
             ep_set_infty(&sigs[i]);
             ep2_copy(&pks[i], (ep2_st*) &pks_input[i]);
@@ -466,7 +466,8 @@ void bls_batchVerify(const int sigs_len, byte* results, const ep2_st* pks_input,
 
     // free the allocated memory 
     free_tree(root); // (relic free is called in free_tree)
+
+out:
     free(sigs); 
     free(pks);
-    bn_free(r);   
 }
