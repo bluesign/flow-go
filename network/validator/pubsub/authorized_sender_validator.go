@@ -42,8 +42,8 @@ func AuthorizedSenderValidator(log zerolog.Logger, channel network.Channel, getI
 			log.Warn().
 				Err(fmt.Errorf("sender %s is an ejected node", identity.NodeID)).
 				Str("peer_id", from.String()).
+				Str("peer_node_id", identity.NodeID.String()).
 				Str("role", identity.Role.String()).
-				Str("node_id", identity.NodeID.String()).
 				Msg("rejecting message")
 			return pubsub.ValidationReject
 		}
@@ -52,8 +52,8 @@ func AuthorizedSenderValidator(log zerolog.Logger, channel network.Channel, getI
 			log.Warn().
 				Err(err).
 				Str("peer_id", from.String()).
+				Str("peer_node_id", identity.NodeID.String()).
 				Str("role", identity.Role.String()).
-				Str("node_id", identity.NodeID.String()).
 				Str("message_type", what).
 				Msg("sender is not authorized, rejecting message")
 
@@ -74,6 +74,10 @@ func IsAuthorizedSender(identity *flow.Identity, channel network.Channel, msg in
 	conf, err := network.GetMessageAuthConfig(msg)
 	if err != nil {
 		return "", fmt.Errorf("failed to get message auth config: %w", err)
+	}
+
+	if network.PublicChannels().Contains(channel) {
+		return conf.String, nil
 	}
 
 	// handle special case for cluster prefixed channels
