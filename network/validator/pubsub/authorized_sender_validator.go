@@ -76,10 +76,6 @@ func IsAuthorizedSender(identity *flow.Identity, channel network.Channel, msg in
 		return "", fmt.Errorf("failed to get message auth config: %w", err)
 	}
 
-	if network.PublicChannels().Contains(channel) {
-		return conf.String, nil
-	}
-
 	// handle special case for cluster prefixed channels
 	if prefix, ok := network.ClusterChannelPrefix(channel); ok {
 		channel = network.Channel(prefix)
