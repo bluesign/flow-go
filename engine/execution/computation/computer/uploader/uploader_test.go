@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package uploader
 
 import (
@@ -174,6 +176,32 @@ func Test_AsyncUploader(t *testing.T) {
 		require.Equal(t, 1, callCount)
 	})
 
+	t.Run("onComplete callback called if set", func(t *testing.T) {
+		var onCompleteCallbackCalled = false
+
+		wgUploadCalleded := sync.WaitGroup{}
+		wgUploadCalleded.Add(1)
+
+		uploader := &DummyUploader{
+			f: func() error {
+				wgUploadCalleded.Done()
+				return nil
+			},
+		}
+
+		async := NewAsyncUploader(uploader, 1*time.Nanosecond, 1, zerolog.Nop(), &DummyCollector{})
+		async.SetOnCompleteCallback(func(computationResult *execution.ComputationResult, err error) {
+			onCompleteCallbackCalled = true
+		})
+
+		err := async.Upload(computationResult)
+		require.NoError(t, err)
+
+		wgUploadCalleded.Wait()
+		<-async.Done()
+
+		require.True(t, onCompleteCallbackCalled)
+	})
 }
 
 func Test_GCPBucketUploader(t *testing.T) {
@@ -212,6 +240,7 @@ func Test_GCPBucketUploader(t *testing.T) {
 	require.Equal(t, buffer.Bytes(), readBytes)
 }
 
+// DummyUploader is an Uploader implementation with an Upload() callback
 type DummyUploader struct {
 	f func() error
 }
@@ -220,6 +249,7 @@ func (d *DummyUploader) Upload(_ *execution.ComputationResult) error {
 	return d.f()
 }
 
+// FailingUploader mocks upload failure cases
 type FailingUploader struct {
 	failTimes int
 	callCount int
@@ -237,6 +267,7 @@ func (d *FailingUploader) Upload(_ *execution.ComputationResult) error {
 	return nil
 }
 
+// DummyCollector is test uploader metrics implementation
 type DummyCollector struct {
 	metrics.NoopCollector
 	Counter       atomic.Int64

@@ -130,6 +130,7 @@ generate-mocks:
 	GO111MODULE=on mockery --name '(ExecutionDataService|ExecutionDataCIDCache|ExecutionDataRequester)' --dir=module/state_synchronization --case=underscore --output="./module/state_synchronization/mock" --outpkg="state_synchronization"
 	GO111MODULE=on mockery --name 'ExecutionState' --dir=engine/execution/state --case=underscore --output="engine/execution/state/mock" --outpkg="mock"
 	GO111MODULE=on mockery --name 'BlockComputer' --dir=engine/execution/computation/computer --case=underscore --output="engine/execution/computation/computer/mock" --outpkg="mock"
+	GO111MODULE=on mockery --name 'Uploader' --dir=engine/execution/computation/computer/uploader --case=underscore --output="engine/execution/computation/computer/uploader/mock" --outpkg="mock"
 	GO111MODULE=on mockery --name 'ComputationManager' --dir=engine/execution/computation --case=underscore --output="engine/execution/computation/mock" --outpkg="mock"
 	GO111MODULE=on mockery --name 'EpochComponentsFactory' --dir=engine/collection/epochmgr --case=underscore --output="engine/collection/epochmgr/mock" --outpkg="mock"
 	GO111MODULE=on mockery --name 'Backend' --dir=engine/collection/rpc --case=underscore --output="engine/collection/rpc/mock" --outpkg="mock"

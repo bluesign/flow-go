@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package uploader
 
 import (
