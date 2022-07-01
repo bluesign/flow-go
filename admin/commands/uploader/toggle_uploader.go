@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package uploader
 
 import (
@@ -7,6 +9,7 @@ import (
 	"github.com/onflow/flow-go/admin"
 	"github.com/onflow/flow-go/admin/commands"
 	"github.com/onflow/flow-go/engine/execution/computation"
+	"github.com/onflow/flow-go/engine/execution/ingestion"
 )
 
 var _ commands.AdminCommand = (*ToggleUploaderCommand)(nil)
@@ -16,6 +19,7 @@ type ToggleUploaderCommand struct{}
 func (t *ToggleUploaderCommand) Handler(ctx context.Context, req *admin.CommandRequest) (interface{}, error) {
 	enabled := req.ValidatorData.(bool)
 	computation.SetUploaderEnabled(enabled)
+	ingestion.SetUploaderEnabled(enabled)
 	return "ok", nil
 }
 

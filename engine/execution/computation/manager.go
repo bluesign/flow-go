@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package computation
 
 import (
@@ -36,7 +38,7 @@ var uploadEnabled = true
 func SetUploaderEnabled(enabled bool) {
 	uploadEnabled = enabled
 
-	log.Info().Msgf("changed uploadEnabled to %v", enabled)
+	log.Info().Msgf("ComputationManager: changed uploadEnabled to %v", enabled)
 }
 
 type VirtualMachine interface {
@@ -52,6 +54,7 @@ type ComputationManager interface {
 		view state.View,
 	) (*execution.ComputationResult, error)
 	GetAccount(addr flow.Address, header *flow.Header, view state.View) (*flow.Account, error)
+	RetryUpload() error
 }
 
 var DefaultScriptLogThreshold = 1 * time.Second
@@ -347,4 +350,15 @@ func (e *Manager) GetAccount(address flow.Address, blockHeader *flow.Header, vie
 	}
 
 	return account, nil
+}
+
+func (e *Manager) RetryUpload() (err error) {
+	for _, u := range e.uploaders {
+		switch u.(type) {
+		case uploader.RetryableUploader:
+			retryableUploader := u.(uploader.RetryableUploader)
+			err = retryableUploader.RetryUpload()
+		}
+	}
+	return err
 }

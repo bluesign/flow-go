@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package computation
 
 import (
@@ -196,6 +198,19 @@ func TestComputeBlock_Uploader(t *testing.T) {
 	require.True(t, has)
 
 	assert.Equal(t, computationResult, retrievedResult)
+}
+
+func TestComputeBlock_RetryableUploader(t *testing.T) {
+	testRetryableUploader := new(FakeRetryableUploader)
+
+	manager := &Manager{
+		uploaders: []uploader.Uploader{testRetryableUploader},
+	}
+
+	err := manager.RetryUpload()
+	assert.Nil(t, err)
+
+	require.True(t, testRetryableUploader.RetryUploadCalled())
 }
 
 func TestExecuteScript(t *testing.T) {
@@ -407,6 +422,25 @@ func (f *FakeUploader) Upload(computationResult *execution.ComputationResult) er
 	}
 	f.data[computationResult.ExecutableBlock.ID()] = computationResult
 	return nil
+}
+
+// FakeRetryableUploader is one RetryableUploader for testing purposes.
+type FakeRetryableUploader struct {
+	uploader.RetryableUploader
+	retryUploadCalled bool
+}
+
+func (f *FakeRetryableUploader) Upload(_ *execution.ComputationResult) error {
+	return nil
+}
+
+func (f *FakeRetryableUploader) RetryUpload() error {
+	f.retryUploadCalled = true
+	return nil
+}
+
+func (f *FakeRetryableUploader) RetryUploadCalled() bool {
+	return f.retryUploadCalled
 }
 
 func noopView() *delta.View {

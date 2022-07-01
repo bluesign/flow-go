@@ -1,3 +1,5 @@
+// (c) 2022 Dapper Labs - ALL RIGHTS RESERVED
+
 package cmd
 
 import (
@@ -186,6 +188,7 @@ func (e *ExecutionNodeBuilder) LoadComponentsAndModules() {
 		txResults                     *storage.TransactionResults
 		results                       *storage.ExecutionResults
 		myReceipts                    *storage.MyExecutionReceipts
+		computationResults            *storage.ComputationResults
 		providerEngine                *exeprovider.Engine
 		checkerEng                    *checker.Engine
 		syncCore                      *chainsync.Core
@@ -286,9 +289,13 @@ func (e *ExecutionNodeBuilder) LoadComponentsAndModules() {
 					collector,
 				)
 
-				blockDataUploaders = append(blockDataUploaders, asyncUploader)
+				// Setting up RetryableUploader for GCP uploader
+				computationResults = storage.NewComputationResults(node.DB)
+				retryableUploader := uploader.NewBadgerRetryableUploader(asyncUploader, computationResults, collector)
 
-				return asyncUploader, nil
+				blockDataUploaders = append(blockDataUploaders, retryableUploader)
+
+				return retryableUploader, nil
 			}
 
 			// Since we don't have conditional component creation, we just use Noop one.
@@ -320,6 +327,9 @@ func (e *ExecutionNodeBuilder) LoadComponentsAndModules() {
 					logger,
 					collector,
 				)
+
+				// We are not enabling RetryableUploader for S3 uploader for now. When we need upload
+				// retry for multiple uploaders, we will need to use different BadgerDB key prefix.
 				blockDataUploaders = append(blockDataUploaders, asyncUploader)
 
 				return asyncUploader, nil
