@@ -419,9 +419,11 @@ type ExecutionMetrics interface {
 	// ExecutionSync reports when the state syncing is triggered or stopped.
 	ExecutionSync(syncing bool)
 
+	// Upload metrics
 	ExecutionBlockDataUploadStarted()
-
 	ExecutionBlockDataUploadFinished(dur time.Duration)
+	ExecutionComputationResultUploaded()
+	ExecutionComputationResultUploadRetried()
 }
 
 type BackendScriptsMetrics interface {
