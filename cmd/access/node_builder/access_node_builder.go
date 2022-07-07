@@ -706,7 +706,7 @@ func (builder *FlowAccessNodeBuilder) enqueueRelayNetwork() {
 			builder.AccessNodeConfig.PublicNetworkConfig.Network,
 			node.Logger,
 			map[network.Channel]network.Channel{
-				network.PushBlocks: network.PublicPushBlocks,
+				network.ReceiveBlocks: network.PublicReceiveBlocks,
 			},
 		)
 		node.Network = relayNet
