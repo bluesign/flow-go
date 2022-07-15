@@ -9,6 +9,7 @@ import (
 
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/module/component"
+	"github.com/onflow/flow-go/module/irrecoverable"
 	"github.com/onflow/flow-go/network/message"
 )
 
@@ -62,6 +63,9 @@ type Middleware interface {
 	// NewPingService creates a new PingService for the given ping protocol ID.
 	NewPingService(pingProtocol protocol.ID, provider PingInfoProvider) PingService
 
+	// PeerManager returns the peer manager configured for the middleware
+	PeerManager() PeerManager
+
 	IsConnected(nodeID flow.Identifier) (bool, error)
 }
 
@@ -84,4 +88,11 @@ type Overlay interface {
 type Connection interface {
 	Send(msg interface{}) error
 	Receive() (interface{}, error)
+}
+
+type PeerManager interface {
+	component.Component
+
+	RequestPeerUpdate()
+	ForceUpdatePeers(irrecoverable.SignalerContext)
 }

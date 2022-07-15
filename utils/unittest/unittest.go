@@ -1,6 +1,7 @@
 package unittest
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"math"
@@ -384,4 +385,13 @@ func AssertEqualBlocksLenAndOrder(t *testing.T, expectedBlocks, actualSegmentBlo
 // NetworkCodec returns cbor codec
 func NetworkCodec() network.Codec {
 	return cborcodec.NewCodec()
+}
+
+func NoIrrecoverableError(t *testing.T, ctx context.Context, errChan <-chan error) {
+	select {
+	case <-ctx.Done():
+		return
+	case err := <-errChan:
+		require.NoError(t, err, "unexpected irrecoverable error")
+	}
 }
