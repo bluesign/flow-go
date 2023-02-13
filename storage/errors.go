@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"errors"
+	storageErrors "github.com/onflow/flow-go/storage/errors"
 )
 
 var (
@@ -10,8 +10,8 @@ var (
 	// badger.ErrKeyNotFound is the error returned by the badger API.
 	// Modules in storage/badger and storage/badger/operation package both
 	// return storage.ErrNotFound for not found error
-	ErrNotFound = errors.New("key not found")
+	ErrNotFound = storageErrors.ErrNotFound
 
-	ErrAlreadyExists = errors.New("key already exists")
-	ErrDataMismatch  = errors.New("data for key is different")
+	ErrAlreadyExists = storageErrors.ErrAlreadyExists
+	ErrDataMismatch  = storageErrors.ErrDataMismatch
 )

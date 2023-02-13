@@ -9,7 +9,8 @@ import (
 
 	"github.com/onflow/flow-go/fvm/errors"
 	"github.com/onflow/flow-go/model/flow"
-	"github.com/onflow/flow-go/storage"
+	storageErrors "github.com/onflow/flow-go/storage/errors"
+	storageHeaders "github.com/onflow/flow-go/storage/headers"
 )
 
 type Blocks interface {
@@ -21,11 +22,11 @@ type Blocks interface {
 
 // BlocksFinder finds blocks and return block headers
 type BlocksFinder struct {
-	storage storage.Headers
+	storage storageHeaders.HeadersQuery
 }
 
 // NewBlockFinder constructs a new block finder
-func NewBlockFinder(storage storage.Headers) Blocks {
+func NewBlockFinder(storage storageHeaders.HeadersQuery) Blocks {
 	return &BlocksFinder{storage: storage}
 }
 
@@ -67,7 +68,7 @@ func (finder *BlocksFinder) ByHeightFrom(height uint64, header *flow.Header) (*f
 
 		_, err = finder.storage.ByHeight(parent.Height)
 		// if height isn't finalized, move to parent
-		if err != nil && errors.Is(err, storage.ErrNotFound) {
+		if err != nil && errors.Is(err, storageErrors.ErrNotFound) {
 			id = parent.ParentID
 			continue
 		}

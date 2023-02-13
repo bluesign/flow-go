@@ -10,7 +10,7 @@ import (
 	"github.com/onflow/flow-go/fvm/tracing"
 	"github.com/onflow/flow-go/model/flow"
 	"github.com/onflow/flow-go/module/trace"
-	"github.com/onflow/flow-go/storage"
+	storageErrors "github.com/onflow/flow-go/storage/errors"
 )
 
 type BlockInfo interface {
@@ -145,7 +145,7 @@ func (info *blockInfo) GetBlockAtHeight(
 	header, err := info.blocks.ByHeightFrom(height, info.blockHeader)
 	// TODO (ramtin): remove dependency on storage and move this if condition
 	// to blockfinder
-	if errors.Is(err, storage.ErrNotFound) {
+	if errors.Is(err, storageErrors.ErrNotFound) {
 		return runtime.Block{}, false, nil
 	} else if err != nil {
 		return runtime.Block{}, false, fmt.Errorf(
