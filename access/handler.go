@@ -9,16 +9,30 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/onflow/flow-go/consensus/hotstuff"
-	"github.com/onflow/flow-go/consensus/hotstuff/signature"
 	"github.com/onflow/flow-go/engine/common/rpc/convert"
 	"github.com/onflow/flow-go/model/flow"
 )
 
+type BlockSignerDecoder interface {
+	DecodeSignerIDs(header *flow.Header) (flow.IdentifierList, error)
+}
+
+// NoopBlockSignerDecoder does not decode any signer indices and consistently returns
+// nil for the signing node IDs (auxiliary data)
+type NoopBlockSignerDecoder struct{}
+
+func NewNoopBlockSignerDecoder() *NoopBlockSignerDecoder {
+	return &NoopBlockSignerDecoder{}
+}
+
+func (b *NoopBlockSignerDecoder) DecodeSignerIDs(_ *flow.Header) (flow.IdentifierList, error) {
+	return nil, nil
+}
+
 type Handler struct {
 	api                  API
 	chain                flow.Chain
-	signerIndicesDecoder hotstuff.BlockSignerDecoder
+	signerIndicesDecoder BlockSignerDecoder
 }
 
 // HandlerOption is used to hand over optional constructor parameters
@@ -28,7 +42,7 @@ func NewHandler(api API, chain flow.Chain, options ...HandlerOption) *Handler {
 	h := &Handler{
 		api:                  api,
 		chain:                chain,
-		signerIndicesDecoder: &signature.NoopBlockSignerDecoder{},
+		signerIndicesDecoder: &NoopBlockSignerDecoder{},
 	}
 	for _, opt := range options {
 		opt(h)
@@ -565,7 +579,7 @@ func blockEventsToMessage(block flow.BlockEvents) (*access.EventsResponse_Result
 
 // WithBlockSignerDecoder configures the Handler to decode signer indices
 // via the provided hotstuff.BlockSignerDecoder
-func WithBlockSignerDecoder(signerIndicesDecoder hotstuff.BlockSignerDecoder) func(*Handler) {
+func WithBlockSignerDecoder(signerIndicesDecoder BlockSignerDecoder) func(*Handler) {
 	return func(handler *Handler) {
 		handler.signerIndicesDecoder = signerIndicesDecoder
 	}
