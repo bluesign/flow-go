@@ -98,19 +98,24 @@ func (c InterpreterMigrationRuntimeConfig) NewRuntimeInterface(
 
 // NewBasicMigrationRuntime returns a basic runtime for migrations.
 func NewBasicMigrationRuntime(regs registers.Registers) *BasicMigrationRuntime {
+
+	snapshot := registers.StorageSnapshot{
+		Registers: regs,
+	}
+
 	transactionState := state.NewTransactionState(
-		registers.StorageSnapshot{
-			Registers: regs,
-		},
+		snapshot,
 		state.DefaultParameters(),
 	)
-	accounts := environment.NewAccounts(transactionState)
+
+	proxy := NewTransactionStateProxy(transactionState, snapshot)
+	accounts := environment.NewAccounts(proxy)
 
 	accountsAtreeLedger := util.NewAccountsAtreeLedger(accounts)
 	runtimeStorage := runtime.NewStorage(accountsAtreeLedger, nil)
 
 	return &BasicMigrationRuntime{
-		TransactionState: transactionState,
+		TransactionState: proxy,
 		Storage:          runtimeStorage,
 		AccountsLedger:   accountsAtreeLedger,
 		Accounts:         accounts,
