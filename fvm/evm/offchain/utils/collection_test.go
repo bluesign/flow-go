@@ -560,16 +560,12 @@ func verifyTrieUpdates(
 ) {
 	enUpdates := make(map[flow.RegisterID]flow.RegisterValue)
 	rootAddrStr := string(rootAddr.Bytes())
-	hasSlabUpdate := false
 	for _, chunk := range resp.ExecutionData.ChunkExecutionDatas {
 		for _, p := range chunk.TrieUpdate.Payloads {
 			id, val, err := ledgerConvert.PayloadToRegister(p)
 			require.NoError(t, err)
 			if id.Owner == rootAddrStr {
 				enUpdates[id] = val
-				if id.IsSlabIndex() {
-					hasSlabUpdate = true
-				}
 			}
 		}
 	}
@@ -620,6 +616,9 @@ func verifyTrieUpdates(
 	}
 
 	for k, v := range missingKeys {
+		if slices.Contains([]string{"LatestBlockMeta"}, string(k)) {
+			continue
+		}
 		fmt.Println("missing key:", k, string(k), v, resp.Height, transactionCount)
 	}
 
@@ -629,7 +628,7 @@ func verifyTrieUpdates(
 		}
 		if k.IsSlabIndex() {
 			// ignore slab index for pre evm registers
-			slabidx := binary.BigEndian.Uint64([]byte(k.Key))
+			slabidx := binary.BigEndian.Uint64([]byte(k.Key[1:]))
 			if slabidx < 0xa {
 				continue
 			}
