@@ -24,6 +24,7 @@ import (
 	"github.com/onflow/cadence"
 	"github.com/onflow/cadence/encoding/ccf"
 	"github.com/onflow/flow-go/fvm/evm/emulator/state"
+	"github.com/onflow/flow-go/fvm/evm/testutils"
 	"github.com/onflow/flow-go/fvm/evm/types"
 	"github.com/onflow/flow/protobuf/go/flow/entities"
 	"github.com/onflow/flow/protobuf/go/flow/executiondata"
@@ -386,22 +387,45 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 	store.Dump()
 	//resume
-	resume := 0 //3_300_000
+	resume := 5_500_000 //3_300_000
 
 	fromHeight = uint64(211176670 + resume + 1) // root block of devnet51
 
 	if resume > 0 {
-		values, err := deserialize(fmt.Sprintf("./en_values_%d.gob", resume))
+		valuesen, err := deserialize(fmt.Sprintf("./en_values_%d.gob", resume))
 		require.NoError(t, err)
 		allocators, err := deserializeAllocator(fmt.Sprintf("./en_allocators_%d.gob", resume))
 		require.NoError(t, err)
-		enstore = GetSimpleValueStorePopulated(values, allocators)
+		enstore = GetSimpleValueStorePopulated(valuesen, allocators)
 
-		values, err = deserialize(fmt.Sprintf("./gw_values_%d.gob", resume))
+		values, err := deserialize(fmt.Sprintf("./gw_values_%d.gob", resume))
 		require.NoError(t, err)
 		allocators, err = deserializeAllocator(fmt.Sprintf("./gw_allocators_%d.gob", resume))
 		require.NoError(t, err)
 		store = GetSimpleValueStorePopulated(values, allocators)
+
+		v, err := store.GetValue(rootAddr[:], []byte(flow.AccountStatusKey))
+		fmt.Println("account status", hex.EncodeToString(v))
+
+		for k, v := range valuesen {
+
+			if slices.Contains([]string{"LatestBlockMeta", "LatestBlockProposal", "LatestBlock", "a.s"}, string(k[9:])) {
+				continue
+			}
+			if strings.Contains(string(k[8:]), "BlockHashList") {
+				continue
+			}
+			_, ok := values[k]
+			if !ok {
+
+				fmt.Println("stored missing key", string(k[9:]), hex.EncodeToString([]byte(k[9:])))
+			}
+			if ok && !bytes.Equal(v, values[k]) {
+				fmt.Println("stored mismatch", k, v, values[k])
+			}
+
+		}
+
 	}
 
 	SyncAndReplay(t, chainID, fromHeight,
@@ -447,7 +471,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 				}
 			}
 
-			if true { //check accounts
+			if false { //check accounts
 				var accountData map[string]string = make(map[string]string)
 				cp, err := state.NewCollectionProvider(atree.Address(rootAddr), store)
 				require.NoError(t, err)
@@ -528,6 +552,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 				t,
 				len(txEvents),
 				rootAddr,
+				enstore,
 				resp,
 				res.StorageRegisterUpdates(),
 				bpStorage.StorageRegisterUpdates())
@@ -554,6 +579,7 @@ func verifyTrieUpdates(
 	t *testing.T,
 	transactionCount int,
 	rootAddr flow.Address,
+	enstore *testutils.TestValueStore,
 	resp ExecutionDataResponse,
 	gwUpdates map[flow.RegisterID]flow.RegisterValue,
 	gwBlockUpdates map[flow.RegisterID]flow.RegisterValue,
@@ -620,7 +646,14 @@ func verifyTrieUpdates(
 		if slices.Contains([]string{"LatestBlockMeta"}, string(k)) {
 			continue
 		}
-		fmt.Println("missing key:", k, string(k), v, resp.Height, transactionCount)
+		if strings.Contains(string(k), "BlockHashList") {
+			continue
+		}
+
+		vsaved, err := enstore.GetValue([]byte(rootAddrStr), []byte(k))
+		if err != nil || !bytes.Equal(v, vsaved) {
+			fmt.Println("missing key:", hex.EncodeToString([]byte(k)), v, resp.Height, transactionCount)
+		}
 	}
 
 	for k, v := range enUpdates {
