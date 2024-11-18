@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
@@ -578,10 +579,6 @@ func verifyTrieUpdates(
 
 	//fmt.Println("total GW updates", len(gwUpdates), len(gwBlockUpdates), "total EN updates", len(enUpdates))
 
-	if !hasSlabUpdate {
-		return
-	}
-
 	debug := false
 	if debug {
 		for k, v := range enUpdates {
@@ -629,6 +626,13 @@ func verifyTrieUpdates(
 	for k, v := range enUpdates {
 		if slices.Contains([]string{"LatestBlockProposal", "LatestBlock", "a.s"}, string(k.Key)) {
 			continue
+		}
+		if k.IsSlabIndex() {
+			// ignore slab index for pre evm registers
+			slabidx := binary.BigEndian.Uint64([]byte(k.Key))
+			if slabidx < 0xa {
+				continue
+			}
 		}
 		fmt.Println("extra key:", k, string(k.Key), v, resp.Height, transactionCount)
 	}
