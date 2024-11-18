@@ -374,6 +374,8 @@ func TestReplayWithExecutionData(t *testing.T) {
 	rootAddr := evm.StorageAccountAddress(chainID)
 	fmt.Println("rootAddr", rootAddr)
 
+	hashes := fixedHashes()
+
 	// setup the rootAddress account
 	as := environment.NewAccountStatus()
 
@@ -387,7 +389,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 	store.Dump()
 	//resume
-	resume := 5_500_000 //3_300_000
+	resume := 6_500_000 //3_300_000
 
 	fromHeight = uint64(211176670 + resume + 1) // root block of devnet51
 
@@ -434,11 +436,16 @@ func TestReplayWithExecutionData(t *testing.T) {
 			if blockEventPayload.Height%1000 == 0 {
 				fmt.Println(blockEventPayload.Height, blockEventPayload.Hash, resp.Height)
 			}
+
+			idx := blockEventPayload.Height % 256
+			hashReplacement := hashes[idx]
+
 			bpStorage := storage.NewEphemeralStorage(store)
 			bp, err := blocks.NewBasicProvider(chainID, bpStorage, rootAddr)
 			require.NoError(t, err)
 
 			err = bp.OnBlockReceived(blockEventPayload)
+
 			require.NoError(t, err)
 
 			sp := NewTestStorageProvider(store, blockEventPayload.Height)
@@ -447,8 +454,11 @@ func TestReplayWithExecutionData(t *testing.T) {
 			res, err := cr.ReplayBlock(txEvents, blockEventPayload)
 			require.NoError(t, err)
 
+			correectHash := blockEventPayload.Hash
+			blockEventPayload.Hash = hashReplacement
 			err = bp.OnBlockExecuted(blockEventPayload.Height, res)
 			require.NoError(t, err)
+			blockEventPayload.Hash = correectHash
 
 			// commit all changes
 			for k, v := range res.StorageRegisterUpdates() {
