@@ -183,10 +183,7 @@ func ReplayingFromSratchToHeight(
 	ReplayingBlocksFromScratch(t, storage, filePath,
 		func(blockEventPayload *events.BlockEventPayload, txEvents []events.TransactionEventPayload) error {
 
-			fmt.Println("------- ", blockEventPayload.Height, "----------")
-			fmt.Println("blockEventPayload: ", blockEventPayload)
-			fmt.Println("txEvents: ", txEvents)
-
+			fmt.Println(blockEventPayload.Height)
 			idx := blockEventPayload.Height % 256
 			consistentHash := hashes[idx]
 			if blockEventPayload.Hash == hashes[idx] {
@@ -396,7 +393,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 	SyncAndReplay(t, chainID, fromHeight,
 		func(blockEventPayload *events.BlockEventPayload, txEvents []events.TransactionEventPayload, resp ExecutionDataResponse) error {
-			fmt.Println("----------   height", blockEventPayload.Height, blockEventPayload.Hash, resp.Height)
+			fmt.Println(blockEventPayload.Height, blockEventPayload.Hash, resp.Height)
 			bpStorage := storage.NewEphemeralStorage(store)
 			bp, err := blocks.NewBasicProvider(chainID, bpStorage, rootAddr)
 			require.NoError(t, err)
@@ -406,15 +403,6 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 			sp := NewTestStorageProvider(store, blockEventPayload.Height)
 			cr := sync.NewReplayer(chainID, rootAddr, sp, &HackedProvider{bp}, zerolog.Logger{}, nil, true)
-
-			fmt.Println("Transactions")
-			for _, txEvent := range txEvents {
-				fmt.Println(txEvent.Index)
-				fmt.Println(txEvent.GasConsumed)
-				fmt.Println(txEvent.Payload)
-				fmt.Println(txEvent.Hash)
-
-			}
 
 			res, err := cr.ReplayBlock(txEvents, blockEventPayload)
 			require.NoError(t, err)
@@ -528,13 +516,6 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 						panic("account data mismatch")
 					}
-					if hex.EncodeToString(key) == "0000000000000000000000021169100eecb7c1a6" {
-						fmt.Println("=======================")
-						fmt.Println("address:", hex.EncodeToString(key))
-						fmt.Println("en:", hex.EncodeToString(value))
-						fmt.Println("gw:", hex.EncodeToString([]byte(data)))
-					}
-
 				}
 			}
 
@@ -575,7 +556,7 @@ func verifyTrieUpdates(
 	matchingKeys := make(map[string]flow.RegisterValue, len(enUpdates))
 	missingKeys := make(map[string]flow.RegisterValue, len(enUpdates))
 
-	fmt.Println("total GW updates", len(gwUpdates), len(gwBlockUpdates), "total EN updates", len(enUpdates))
+	//fmt.Println("total GW updates", len(gwUpdates), len(gwBlockUpdates), "total EN updates", len(enUpdates))
 
 	if !hasSlabUpdate {
 		return
