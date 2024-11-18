@@ -616,6 +616,7 @@ func verifyTrieUpdates(
 	}
 
 	for k, v := range missingKeys {
+		//those keys are only used by GW
 		if slices.Contains([]string{"LatestBlockMeta"}, string(k)) {
 			continue
 		}
@@ -623,6 +624,7 @@ func verifyTrieUpdates(
 	}
 
 	for k, v := range enUpdates {
+		//those keys are only used by handler ( and flow account status register a.s )
 		if slices.Contains([]string{"LatestBlockProposal", "LatestBlock", "a.s"}, string(k.Key)) {
 			continue
 		}
