@@ -345,8 +345,6 @@ type HackedSnapshot struct {
 	snapshot types.BlockSnapshot
 }
 
-var minerMap map[uint64]gethCommon.Address
-
 func (s *HackedSnapshot) BlockContext() (types.BlockContext, error) {
 
 	blockContext, err := s.snapshot.BlockContext()
@@ -355,12 +353,7 @@ func (s *HackedSnapshot) BlockContext() (types.BlockContext, error) {
 	}
 	miner := types.CoinbaseAddress
 	if blockContext.ChainID == types.FlowEVMTestNetChainID && blockContext.BlockNumber < 1385490 {
-		fixedMiner, ok := minerMap[blockContext.BlockNumber]
-		if ok {
-			miner = types.Address(fixedMiner)
-		} else {
-			miner = types.Address(gethCommon.HexToAddress("0000000000000000000000021169100eecb7c1a6"))
-		}
+		miner = types.Address(gethCommon.HexToAddress("0000000000000000000000021169100eecb7c1a6"))
 	}
 	blockContext.GasFeeCollector = miner
 	return blockContext, nil
@@ -375,7 +368,6 @@ func TestReplayWithExecutionData(t *testing.T) {
 	chainID := flow.Testnet
 	store := GetSimpleValueStore()
 	enstore := GetSimpleValueStore()
-	minerMap = make(map[uint64]gethCommon.Address)
 	rootAddr := evm.StorageAccountAddress(chainID)
 	fmt.Println("rootAddr", rootAddr)
 
@@ -392,7 +384,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 	store.Dump()
 	//resume
-	resume := 600000
+	resume := 0 //3_300_000
 
 	fromHeight = uint64(211176670 + resume + 1) // root block of devnet51
 
@@ -413,6 +405,7 @@ func TestReplayWithExecutionData(t *testing.T) {
 	SyncAndReplay(t, chainID, fromHeight,
 		func(blockEventPayload *events.BlockEventPayload, txEvents []events.TransactionEventPayload, resp ExecutionDataResponse) error {
 			fmt.Println(blockEventPayload.Height, blockEventPayload.Hash, resp.Height)
+
 			bpStorage := storage.NewEphemeralStorage(store)
 			bp, err := blocks.NewBasicProvider(chainID, bpStorage, rootAddr)
 			require.NoError(t, err)
@@ -450,77 +443,79 @@ func TestReplayWithExecutionData(t *testing.T) {
 				}
 			}
 
-			var accountData map[string]string = make(map[string]string)
-			cp, err := state.NewCollectionProvider(atree.Address(rootAddr), store)
-			require.NoError(t, err)
-
-			collectionID, err := store.GetValue(rootAddr[:], []byte("AccountsStorageIDKey"))
-			if len(collectionID) > 0 { //accounts created
-				col, err := cp.CollectionByID(collectionID)
+			if true { //check accounts
+				var accountData map[string]string = make(map[string]string)
+				cp, err := state.NewCollectionProvider(atree.Address(rootAddr), store)
 				require.NoError(t, err)
 
-				iter, err := col.ReadOnlyIterator()
-				require.NoError(t, err)
+				collectionID, err := store.GetValue(rootAddr[:], []byte("AccountsStorageIDKey"))
+				if len(collectionID) > 0 { //accounts created
+					col, err := cp.CollectionByID(collectionID)
+					require.NoError(t, err)
 
-				for {
-					key, value, err := iter.Next()
-					if len(key) == 0 {
-						break
+					iter, err := col.ReadOnlyIterator()
+					require.NoError(t, err)
+
+					for {
+						key, value, err := iter.Next()
+						if len(key) == 0 {
+							break
+						}
+						if err != nil {
+							break
+						}
+						accountData[string(key)] = string(value)
 					}
-					if err != nil {
-						break
-					}
-					accountData[string(key)] = string(value)
 				}
-			}
 
-			encp, err := state.NewCollectionProvider(atree.Address(rootAddr), enstore)
-			require.NoError(t, err)
-
-			enCollectionID, err := store.GetValue(rootAddr[:], []byte("AccountsStorageIDKey"))
-			if len(enCollectionID) > 0 { //accounts created
-				col, err := encp.CollectionByID(enCollectionID)
+				encp, err := state.NewCollectionProvider(atree.Address(rootAddr), enstore)
 				require.NoError(t, err)
 
-				iter, err := col.ReadOnlyIterator()
-				require.NoError(t, err)
+				enCollectionID, err := store.GetValue(rootAddr[:], []byte("AccountsStorageIDKey"))
+				if len(enCollectionID) > 0 { //accounts created
+					col, err := encp.CollectionByID(enCollectionID)
+					require.NoError(t, err)
 
-				for {
-					key, value, err := iter.Next()
-					if len(key) == 0 {
-						break
-					}
+					iter, err := col.ReadOnlyIterator()
+					require.NoError(t, err)
 
-					if err != nil {
-						break
-					}
-
-					data, ok := accountData[string(key)]
-					if !ok {
-						fmt.Println("account missing on en", hex.EncodeToString(key))
-						panic("account missing")
-					}
-
-					if !bytes.Equal(value, []byte(data)) {
-						fmt.Println("address:", hex.EncodeToString(key))
-						fmt.Println("en:", hex.EncodeToString(value))
-						fmt.Println("gw:", hex.EncodeToString([]byte(data)))
-
-						fmt.Println("Block")
-						fmt.Println(blockEventPayload.Height)
-						fmt.Println(blockEventPayload.Hash)
-						fmt.Println(blockEventPayload.TransactionHashRoot)
-
-						fmt.Println("Transactions")
-						for _, txEvent := range txEvents {
-							fmt.Println(txEvent.Index)
-							fmt.Println(txEvent.GasConsumed)
-							fmt.Println(txEvent.Payload)
-							fmt.Println(txEvent.Hash)
-
+					for {
+						key, value, err := iter.Next()
+						if len(key) == 0 {
+							break
 						}
 
-						panic("account data mismatch")
+						if err != nil {
+							break
+						}
+
+						data, ok := accountData[string(key)]
+						if !ok {
+							fmt.Println("account missing on en", hex.EncodeToString(key))
+							panic("account missing")
+						}
+
+						if !bytes.Equal(value, []byte(data)) {
+							fmt.Println("address:", hex.EncodeToString(key))
+							fmt.Println("en:", hex.EncodeToString(value))
+							fmt.Println("gw:", hex.EncodeToString([]byte(data)))
+
+							fmt.Println("Block")
+							fmt.Println(blockEventPayload.Height)
+							fmt.Println(blockEventPayload.Hash)
+							fmt.Println(blockEventPayload.TransactionHashRoot)
+
+							fmt.Println("Transactions")
+							for _, txEvent := range txEvents {
+								fmt.Println(txEvent.Index)
+								fmt.Println(txEvent.GasConsumed)
+								fmt.Println(txEvent.Payload)
+								fmt.Println(txEvent.Hash)
+
+							}
+
+							panic("account data mismatch")
+						}
 					}
 				}
 			}
@@ -582,17 +577,20 @@ func verifyTrieUpdates(
 		return
 	}
 
-	for k, v := range enUpdates {
-		fmt.Println("en Updates", hex.EncodeToString([]byte(k.Key)), k.Key, fmt.Sprintf("%x", v))
+	debug := false
+	if debug {
+		for k, v := range enUpdates {
+			fmt.Println("en Updates", hex.EncodeToString([]byte(k.Key)), k.Key, fmt.Sprintf("%x", v))
 
-	}
+		}
 
-	for k, v := range gwUpdates {
-		fmt.Println("gw Updates", hex.EncodeToString([]byte(k.Key)), k.Key, fmt.Sprintf("%x", v))
-	}
+		for k, v := range gwUpdates {
+			fmt.Println("gw Updates", hex.EncodeToString([]byte(k.Key)), k.Key, fmt.Sprintf("%x", v))
+		}
 
-	for k, v := range gwBlockUpdates {
-		fmt.Println("gw Block Updates", k.Key, fmt.Sprintf("%x", v))
+		for k, v := range gwBlockUpdates {
+			fmt.Println("gw Block Updates", k.Key, fmt.Sprintf("%x", v))
+		}
 	}
 
 	for k, v := range gwUpdates {
@@ -620,8 +618,14 @@ func verifyTrieUpdates(
 	}
 
 	for k, v := range missingKeys {
-		fmt.Println("missing key", k, v)
+		fmt.Println("missing key:", k, v)
 	}
+	require.Equal(t, 0, len(missingKeys), "missing keys on EN")
+
+	for k, v := range enUpdates {
+		fmt.Println("extra key:", k, v)
+	}
+	require.Equal(t, 0, len(enUpdates), "extra keys on EN")
 }
 
 func SyncBlocksFromScratch(
