@@ -26,6 +26,7 @@ import (
 	"github.com/onflow/flow/protobuf/go/flow/entities"
 	"github.com/onflow/flow/protobuf/go/flow/executiondata"
 	gethCommon "github.com/onflow/go-ethereum/common"
+	"google.golang.org/grpc/encoding/gzip"
 
 	"github.com/onflow/flow-go/engine/common/rpc/convert"
 	"github.com/onflow/flow-go/fvm/environment"
@@ -123,8 +124,6 @@ func ReplayingFromSratchFromHeight(
 			if blockEventPayload.Height < startExecutingFromHeight {
 				return nil
 			}
-
-			// fmt.Println("height: ", blockEventPayload.Height)
 
 			idx := blockEventPayload.Height % 256
 
@@ -391,6 +390,26 @@ func TestReplayWithExecutionData(t *testing.T) {
 
 	fromHeight := uint64(211176670) // root block of devnet51
 
+	store.Dump()
+	//resume
+	resume := 600000
+
+	fromHeight = uint64(211176670 + resume + 1) // root block of devnet51
+
+	if resume > 0 {
+		values, err := deserialize(fmt.Sprintf("./en_values_%d.gob", resume))
+		require.NoError(t, err)
+		allocators, err := deserializeAllocator(fmt.Sprintf("./en_allocators_%d.gob", resume))
+		require.NoError(t, err)
+		enstore = GetSimpleValueStorePopulated(values, allocators)
+
+		values, err = deserialize(fmt.Sprintf("./gw_values_%d.gob", resume))
+		require.NoError(t, err)
+		allocators, err = deserializeAllocator(fmt.Sprintf("./gw_allocators_%d.gob", resume))
+		require.NoError(t, err)
+		store = GetSimpleValueStorePopulated(values, allocators)
+	}
+
 	SyncAndReplay(t, chainID, fromHeight,
 		func(blockEventPayload *events.BlockEventPayload, txEvents []events.TransactionEventPayload, resp ExecutionDataResponse) error {
 			fmt.Println(blockEventPayload.Height, blockEventPayload.Hash, resp.Height)
@@ -407,18 +426,11 @@ func TestReplayWithExecutionData(t *testing.T) {
 			res, err := cr.ReplayBlock(txEvents, blockEventPayload)
 			require.NoError(t, err)
 
-			gwSlab := atree.SlabIndex{}
-			enSlab := atree.SlabIndex{}
-
 			err = bp.OnBlockExecuted(blockEventPayload.Height, res)
 			require.NoError(t, err)
 
 			// commit all changes
 			for k, v := range res.StorageRegisterUpdates() {
-				if k.Key == "a.s" {
-					as, err = environment.AccountStatusFromBytes(v)
-					gwSlab = as.SlabIndex()
-				}
 				err = store.SetValue([]byte(k.Owner), []byte(k.Key), v)
 				require.NoError(t, err)
 			}
@@ -432,15 +444,9 @@ func TestReplayWithExecutionData(t *testing.T) {
 				for _, p := range chunk.TrieUpdate.Payloads {
 					id, val, err := ledgerConvert.PayloadToRegister(p)
 					require.NoError(t, err)
-					if id.Owner == string(rootAddr.Bytes()) && id.Key == "a.s" {
-						as, _ := environment.AccountStatusFromBytes(val)
-						enSlab = as.SlabIndex()
-
-						fmt.Println("EN Slab Index", enSlab)
-						fmt.Println("GW Slab Index", gwSlab)
-
+					if id.Owner == string(rootAddr.Bytes()) {
+						enstore.SetValue([]byte(id.Owner), []byte(id.Key), val)
 					}
-					enstore.SetValue([]byte(id.Owner), []byte(id.Key), val)
 				}
 			}
 
@@ -525,6 +531,20 @@ func TestReplayWithExecutionData(t *testing.T) {
 				resp,
 				res.StorageRegisterUpdates(),
 				bpStorage.StorageRegisterUpdates())
+
+			// save checkpoint in every 10000 blocks
+			if blockEventPayload.Height%100000 == 0 {
+				values, allocators := store.Dump()
+				require.NoError(t, serialize(fmt.Sprintf("./gw_values_%d.gob", blockEventPayload.Height), values))
+				require.NoError(t, serializeAllocator(fmt.Sprintf("./gw_allocators_%d.gob", blockEventPayload.Height), allocators))
+
+				values, allocators = enstore.Dump()
+				require.NoError(t, serialize(fmt.Sprintf("./en_values_%d.gob", blockEventPayload.Height), values))
+				require.NoError(t, serializeAllocator(fmt.Sprintf("./en_allocators_%d.gob", blockEventPayload.Height), allocators))
+
+				fmt.Println("finished writing for height ", blockEventPayload.Height)
+
+			}
 
 			return nil
 		})
@@ -612,8 +632,12 @@ func SyncBlocksFromScratch(
 ) {
 
 	address := "access-001.devnet51.nodes.onflow.org:9000"
-	opts := make([]grpc.DialOption, 0)
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts := []grpc.DialOption{
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(1024*1024*100),
+			grpc.UseCompressor(gzip.Name)),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
 	conn, err := grpc.Dial(address, opts...)
 	require.NoError(t, err)
 	client := executiondata.NewExecutionDataAPIClient(conn)
@@ -631,15 +655,18 @@ func SyncBlocksFromScratch(
 		for {
 			resp, err := stream.Recv()
 			if err == io.EOF {
+				fmt.Println("EOF")
 				return
 			}
 			if err != nil {
+				fmt.Println("error receiving execution data", err)
 				sub.err = fmt.Errorf("error receiving execution data: %w [%d]", err, fromHeight)
 				return
 			}
 
 			execData, err := convert.MessageToBlockExecutionData(resp.GetBlockExecutionData(), chainID.Chain())
 			if err != nil {
+				fmt.Println("error converting execution data: %w", err)
 				fmt.Printf("error converting execution data:\n%v", resp.GetBlockExecutionData())
 				sub.err = fmt.Errorf("error converting execution data: %w", err)
 				return
